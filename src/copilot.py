@@ -54,6 +54,7 @@ def extract_images(archive_path, temp_dir="temp_pages"):
 
 
 def split_and_process(image_path, layout):
+    img_base = pathlib.Path(image_path).name.split(".")[0]
     img = cv2.imread(image_path)
     if img is None:
         logger.warning(f"Failed to read image: {image_path}")
@@ -62,7 +63,7 @@ def split_and_process(image_path, layout):
     h, w = img.shape[:2]
     logger.debug(f"Processing {image_path} size={w}x{h}")
 
-    quadrants = []
+    panels = []
     
     if layout is None:
         boxes = [
@@ -72,12 +73,16 @@ def split_and_process(image_path, layout):
             (w//2, h//2, w, h)        # bottom-right
         ]  
     elif layout == "auto":
-        boxes = jb_panels.detect_panels(img, True)
+        debugDir = pathlib.Path("./debug")
+        debugDir.mkdir(exist_ok=True)
+        
+        img_path = pathlib.Path(image_path)
+        boxes = jb_panels.detect_panels(img, debugDir / (img_path.stem + "_panels.jpg"))
     else:
         boxes = []
         l = layout.split(";")
         for stx,sty,sbx,sby in l.split(","):
-            ftx,fty,fbx,fby = flot(stx), float(sty), float(sbx), float(sby)
+            ftx,fty,fbx,fby = float(stx), float(sty), float(sbx), float(sby)
             tx = int(ftx*w)
             ty = int(fty*h)
             bx = int(fbx*w)
@@ -86,24 +91,24 @@ def split_and_process(image_path, layout):
             boxes.append([tx,ty,bx,by])
             
     for i, (x1, y1, x2, y2) in enumerate(boxes, start=1):
-        quad = img[y1:y2, x1:x2]
+        panel = img[y1:y2, x1:x2]
+        if panel.size > 0:
+        # # Example OpenCV processing
+        # panel = cv2.cvtColor(panel, cv2.COLOR_BGR2GRAY)
+        # panel = cv2.adaptiveThreshold(panel, 255,
+        #                              cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        #                              cv2.THRESH_BINARY, 11, 2)
+        # panel = cv2.cvtColor(panel, cv2.COLOR_GRAY2BGR)
 
-        # Example OpenCV processing
-        quad = cv2.cvtColor(quad, cv2.COLOR_BGR2GRAY)
-        quad = cv2.adaptiveThreshold(quad, 255,
-                                     cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                     cv2.THRESH_BINARY, 11, 2)
-        quad = cv2.cvtColor(quad, cv2.COLOR_GRAY2BGR)
-
-        success, buf = cv2.imencode(".jpg", quad)
-        if success:
-            quadrants.append(buf.tobytes())
-            logger.debug(f"Quadrant {i} encoded")
+            success, buf = cv2.imencode(".jpg", panel)
+            if success:
+                panels.append(buf.tobytes())
+                logger.debug(f"Quadrant {i} encoded")
+            else:
+                logger.warning(f"Quadrant {i} failed to encode")
         else:
-            logger.warning(f"Quadrant {i} failed to encode")
-
-    return quadrants
-
+            logger.warning(f"Quadrant {i} has zero size, skipped")
+    return panels
 
 def create_epub(archive_path, output_path, args):
     logger.info(f"Creating EPUB: {output_path}")
@@ -189,5 +194,5 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    main(["test_pages", "--first", "0", "--last", "0"])
+    main(["test_pages", "--first", "20", "--last", "30"])
     #main(["E:/Downloads/LTB 001-585/011_-_Hexenzauber_mit_Micky_und_Goofy_(1._Auflage).cbr", "--first", "11", "--last", "11"])

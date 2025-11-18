@@ -7,7 +7,7 @@ def sort_contours_top_to_bottom(contours, method="top-to-bottom"):
     sorted_pairs = sorted(zip(contours, bounding_boxes), key=lambda b: (b[1][1], b[1][0]))
     return [p[0] for p in sorted_pairs], [p[1] for p in sorted_pairs]
 
-def detect_panels(img, debug=False):
+def detect_panels(img, debug=None):
     orig = img.copy()
     h, w = img.shape[:2]
 
@@ -73,15 +73,14 @@ def detect_panels(img, debug=False):
     # Sort top-to-bottom, left-to-right
     final_boxes = sorted(final_boxes, key=lambda b: (b[1], b[0]))
 
-    if debug:
+    print(f"Debug {debug}")
+    if debug is not None:
         viz = orig.copy()
-        for i, (x,y,ww,hh) in enumerate(panel_boxes):
-            cv2.rectangle(viz, (x,y), (x+ww, y+hh), (0,128,128), 7)
         for i, (x,y,ww,hh) in enumerate(final_boxes, start=1):
             cv2.rectangle(viz, (x,y), (x+ww, y+hh), (0,255,0), 3)
             cv2.putText(viz, str(i), (x+8, y+24), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0,255,0), 2)
-        cv2.imwrite("panels_debug.jpg", viz)
-        print("Debug visualization saved to panels_debug.jpg")
+        cv2.imwrite(debug, viz)
+        print(f"Debug visualization saved to {debug}")
     
     print("Final Boxes", final_boxes)
     
